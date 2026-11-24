@@ -199,3 +199,49 @@ export function formatCurrencyMetric(val: number): string {
   if (val >= 1_000) return `$${Math.round(val / 1e3)}K`;
   return `$${val.toLocaleString()}`;
 }
+
+/** Generates structured institutional executive summary table */
+export function generateExecutiveMarkdownSummary(board: BoardRow[], analytics: RadarAnalyticsSummary): string {
+  const topRows = board.slice(0, 5);
+  const lines: string[] = [
+    `# Institutional Token Radar Intelligence Report`,
+    ``,
+    `## Macro Snapshot Overview`,
+    `- **Total Tracked DeFi TVL:** ${formatCurrencyMetric(analytics.total_tracked_tvl_usd)}`,
+    `- **Aggregated Implied Token Valuation:** ${formatCurrencyMetric(analytics.total_implied_valuation_usd)}`,
+    `- **Median Implied Protocol Valuation:** ${formatCurrencyMetric(analytics.median_implied_value_usd)}`,
+    `- **Top Dominant Ecosystem:** ${analytics.top_chains_by_tvl[0]?.chain ?? 'Unknown'} (${analytics.top_chains_by_tvl[0]?.market_share_pct ?? 0}% market share)`,
+    ``,
+    `## Top 5 High-Signal Launch Candidates`,
+    `| Rank | Protocol | Category | TVL | Implied Value | Growth 7d | Chains |`,
+    `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |`,
+  ];
+
+  for (const row of topRows) {
+    const growthStr = row.change_7d !== null ? `${row.change_7d > 0 ? '+' : ''}${row.change_7d.toFixed(1)}%` : 'n/a';
+    const chainStr = row.chains.slice(0, 3).join(', ');
+    lines.push(
+      `| #${row.rank} | **${row.name}** | ${row.category ?? 'DeFi'} | ${formatCurrencyMetric(row.tvl_usd)} | ${formatCurrencyMetric(row.implied_value_usd)} | ${growthStr} | ${chainStr} |`,
+    );
+  }
+
+  lines.push(``);
+  lines.push(`Generated deterministically by Token Radar Pro autonomous engine under telas929.`);
+  return lines.join('\n');
+}
+
+/** Exports clean CSV formatted data for external institutional modeling */
+export function exportBoardCsv(board: BoardRow[]): string {
+  const headers = ['rank', 'slug', 'name', 'category', 'tvl_usd', 'change_7d', 'implied_value_usd', 'chains'];
+  const rows = board.map((r) => [
+    r.rank,
+    r.slug,
+    `"${r.name.replace(/"/g, '""')}"`,
+    `"${(r.category ?? 'Other').replace(/"/g, '""')}"`,
+    r.tvl_usd,
+    r.change_7d ?? 0,
+    r.implied_value_usd,
+    `"${r.chains.join(';')}"`,
+  ].join(','));
+  return [headers.join(','), ...rows].join('\n');
+}

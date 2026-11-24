@@ -5,7 +5,7 @@
 // 1. Ingests frozen DefiLlama snapshot from /input/snapshot.json (or --input <path>).
 // 2. Evaluates pre-token DeFi protocols using the deterministic radar-2.0-pro valuation model.
 // 3. Executes quantitative risk scoring, ecosystem TVL distribution, and airdrop yield forecasts.
-// 4. Generates ranked board (/output/board.json) and ecosystem analytics (/output/analytics.json).
+// 4. Generates ranked board (/output/board.json), analytics (/output/analytics.json), and report (/output/REPORT.md).
 // 5. Bundles zero-network interactive Web3 dashboard assets and verified screenshots to /output.
 // 6. Compiles sealed dossier.json summary for the Superbot AI Judge at high reasoning effort.
 
@@ -13,7 +13,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSyn
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
-import { computeEcosystemAnalytics, formatCurrencyMetric } from './lib/analytics.ts';
+import { computeEcosystemAnalytics, formatCurrencyMetric, generateExecutiveMarkdownSummary } from './lib/analytics.ts';
 import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
 import { buildDossier } from './vendor/makefun-board.ts';
 
@@ -86,6 +86,7 @@ function runRadarPipeline(): void {
 
   // Compute institutional ecosystem analytics
   const analyticsSummary = computeEcosystemAnalytics(snapshotData, board);
+  const executiveReport = generateExecutiveMarkdownSummary(board, analyticsSummary);
 
   // Ensure output directory exists
   mkdirSync(outputDirectory, { recursive: true });
@@ -97,6 +98,10 @@ function runRadarPipeline(): void {
   // Write analytics.json
   const analyticsJsonPath = join(outputDirectory, 'analytics.json');
   writeFileSync(analyticsJsonPath, `${JSON.stringify(analyticsSummary, null, 2)}\n`, 'utf8');
+
+  // Write REPORT.md
+  const reportPath = join(outputDirectory, 'REPORT.md');
+  writeFileSync(reportPath, `${executiveReport}\n`, 'utf8');
 
   // Write data.js for zero-network dashboard
   const dataScriptPath = join(outputDirectory, 'data.js');
@@ -143,7 +148,7 @@ function runRadarPipeline(): void {
       `  - Pre-Token Radar Board: ${board.length} protocols scored (${radar.early_size} early gems)\n` +
       `  - Total Implied Market Value: ${formatCurrencyMetric(totalImpliedValuation)}\n` +
       `  - Tracked Ecosystem TVL: ${formatCurrencyMetric(analyticsSummary.total_tracked_tvl_usd)}\n` +
-      `  - Output Generated: ${boardJsonPath}, ${dataScriptPath}, ${analyticsJsonPath}, ${dossierPath}\n` +
+      `  - Output Generated: ${boardJsonPath}, ${dataScriptPath}, ${analyticsJsonPath}, ${reportPath}, ${dossierPath}\n` +
       `  - Assets Copied: ${copiedDashboard.length} dashboard files, ${copiedScreenshots.length} screenshots\n`,
   );
 }
