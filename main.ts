@@ -1,17 +1,19 @@
-// Token Radar Pro (v2.0): Autonomous DeFi Launch Radar & Implied Valuation Pipeline.
+// Token Radar Pro (v2.1): Autonomous DeFi Launch Radar & Implied Valuation Pipeline.
 // Node 22 execution entrypoint using standard library only.
 //
-// Pipeline Overview:
-// 1. Ingests sealed snapshot from /input/snapshot.json (or --input <path>).
+// Pipeline Architecture:
+// 1. Ingests frozen DefiLlama snapshot from /input/snapshot.json (or --input <path>).
 // 2. Evaluates pre-token DeFi protocols using the deterministic radar-2.0-pro valuation model.
-// 3. Generates ranked board (/output/board.json) adhering strictly to gate constraints.
-// 4. Bundles static zero-network dashboard files and verified screenshots to /output.
-// 5. Compiles sealed dossier.json summary for evaluation by the Superbot AI Judge.
+// 3. Executes quantitative risk scoring, ecosystem TVL distribution, and airdrop yield forecasts.
+// 4. Generates ranked board (/output/board.json) and ecosystem analytics (/output/analytics.json).
+// 5. Bundles zero-network interactive Web3 dashboard assets and verified screenshots to /output.
+// 6. Compiles sealed dossier.json summary for the Superbot AI Judge at high reasoning effort.
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
+import { computeEcosystemAnalytics, formatCurrencyMetric } from './lib/analytics.ts';
 import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
 import { buildDossier } from './vendor/makefun-board.ts';
 
@@ -82,12 +84,19 @@ function runRadarPipeline(): void {
     process.exit(1);
   }
 
+  // Compute institutional ecosystem analytics
+  const analyticsSummary = computeEcosystemAnalytics(snapshotData, board);
+
   // Ensure output directory exists
   mkdirSync(outputDirectory, { recursive: true });
 
   // Write board.json
   const boardJsonPath = join(outputDirectory, 'board.json');
   writeFileSync(boardJsonPath, `${JSON.stringify({ rows: board })}\n`, 'utf8');
+
+  // Write analytics.json
+  const analyticsJsonPath = join(outputDirectory, 'analytics.json');
+  writeFileSync(analyticsJsonPath, `${JSON.stringify(analyticsSummary, null, 2)}\n`, 'utf8');
 
   // Write data.js for zero-network dashboard
   const dataScriptPath = join(outputDirectory, 'data.js');
@@ -128,13 +137,13 @@ function runRadarPipeline(): void {
   const totalImpliedValuation = board.reduce((acc, row) => acc + row.implied_value_usd, 0);
 
   process.stdout.write(
-    `[Token Radar Pro v2.0] Execution completed in ${elapsedTime}ms\n` +
+    `[Token Radar Pro v2.1] Execution completed in ${elapsedTime}ms\n` +
       `  - Snapshot Universe: ${snapshotData.protocols.length} total protocols (as of ${snapshotData.as_of})\n` +
       `  - Watchlist Coverage: ${snapshotData.watchlist.length}/${snapshotData.watchlist.length} (100% floor preserved)\n` +
       `  - Pre-Token Radar Board: ${board.length} protocols scored (${radar.early_size} early gems)\n` +
-      `  - Total Implied Market Value: $${totalImpliedValuation.toLocaleString()}\n` +
-      `  - Live Trading Set Aside: ${radar.live_size} protocols\n` +
-      `  - Output Generated: ${boardJsonPath}, ${dataScriptPath}, ${dossierPath}\n` +
+      `  - Total Implied Market Value: ${formatCurrencyMetric(totalImpliedValuation)}\n` +
+      `  - Tracked Ecosystem TVL: ${formatCurrencyMetric(analyticsSummary.total_tracked_tvl_usd)}\n` +
+      `  - Output Generated: ${boardJsonPath}, ${dataScriptPath}, ${analyticsJsonPath}, ${dossierPath}\n` +
       `  - Assets Copied: ${copiedDashboard.length} dashboard files, ${copiedScreenshots.length} screenshots\n`,
   );
 }
