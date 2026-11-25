@@ -12,6 +12,7 @@
     category: 'all',
     chain: 'all',
     risk: 'all',
+    cohort: 'all',
     tab: 'pre-token',
     sort: 'implied',
     dir: -1,
@@ -60,15 +61,41 @@
     return mult;
   }
 
+  function computePeerMultiples() {
+    var byCat = {};
+    (DATA.live || []).forEach(function (p) {
+      if (p.mcap_usd && p.mcap_usd > 0 && p.tvl_usd > 0 && p.category) {
+        var ratio = clamp(p.mcap_usd / p.tvl_usd, 0.15, 0.85);
+        if (!byCat[p.category]) byCat[p.category] = [];
+        byCat[p.category].push(ratio);
+      }
+    });
+    var medians = {};
+    Object.keys(byCat).forEach(function (cat) {
+      var vals = byCat[cat].sort(function (a, b) { return a - b; });
+      if (vals.length >= 2) {
+        var mid = Math.floor(vals.length / 2);
+        var med = vals.length % 2 === 0 ? (vals[mid - 1] + vals[mid]) / 2 : vals[mid];
+        medians[cat] = Math.round(med * 1000) / 1000;
+      }
+    });
+    return medians;
+  }
+
+  var PEER_MULTIPLES = computePeerMultiples();
+
   function impliedOf(row, baseM, growW) {
     var m = DATA.model;
     var bm = baseM !== undefined ? baseM : m.base_multiple;
+    var peerBase = (row.category && PEER_MULTIPLES[row.category] !== undefined && bm === m.base_multiple)
+      ? PEER_MULTIPLES[row.category]
+      : bm;
     var gw = growW !== undefined ? growW : m.growth_weight;
     var growth = clamp(row.change_7d === null || row.change_7d === undefined ? 0 : row.change_7d, m.growth_floor, m.growth_cap);
     var growthMult = 1 + (growth / 100) * gw;
     var age = row.age_days === null || row.age_days === undefined ? m.unknown_age_days : row.age_days;
     var maturity = m.maturity_floor + (clamp(age, 0, m.maturity_days) / m.maturity_days) * m.maturity_range;
-    return Math.max(1, Math.round(row.tvl_usd * bm * categoryMultiplier(row.category) * chainMultiplier(row.chains) * growthMult * maturity));
+    return Math.max(1, Math.round(row.tvl_usd * peerBase * categoryMultiplier(row.category) * chainMultiplier(row.chains) * growthMult * maturity));
   }
 
   function riskOf(row) {
@@ -219,11 +246,14 @@
 
   function visibleRows() {
     var q = state.q.trim().toLowerCase();
+    var floor = DATA.floor_usd || 50000000;
     var list = enrichedRows().filter(function (item) {
       var r = item.row;
       if (state.category !== 'all' && r.category !== state.category) return false;
       if (state.chain !== 'all' && (r.chains || []).indexOf(state.chain) < 0) return false;
       if (state.risk !== 'all' && item.risk.tier !== state.risk) return false;
+      if (state.cohort === 'watchlist' && r.tvl_usd < floor) return false;
+      if (state.cohort === 'early' && r.tvl_usd >= floor) return false;
       if (!q) return true;
       return r.name.toLowerCase().indexOf(q) >= 0 ||
         (r.category || '').toLowerCase().indexOf(q) >= 0 ||
@@ -248,7 +278,7 @@
     return el('header', { class: 'top' },
       el('div', { class: 'brand' },
         el('span', { class: 'mark', 'aria-hidden': 'true' }),
-        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.2' })
+        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.3' })
       ),
       el('div', { class: 'top-meta' },
         el('span', { text: 'Snapshot ' + DATA.as_of }),
@@ -256,6 +286,42 @@
         el('span', { text: DATA.board_size + ' Pre-Token Protocols' })
       )
     );
+  }
+
+  function peerStrip() {
+    var cats = Object.keys(PEER_MULTIPLES).sort();
+    var pills = cats.slice(0, 6).map(function (cat) {
+      return el('span', { class: 'peer-pill' }, cat + ': ', el('b', { text: PEER_MULTIPLES[cat].toFixed(2) + 'x' }));
+    });
+    return el('section', { class: 'peer-strip', 'aria-label': 'Empirical Peer Calibration Multiples' },
+      el('span', { class: 'sandbox-title', text: 'Live Peer MCap/TVL' }),
+      pills.length ? pills : el('span', { class: 'sub', text: 'Fallback base ' + DATA.model.base_multiple + 'x' })
+    );
+  }
+
+  function exportCsv() {
+    var rows = visibleRows();
+    var lines = ['rank,name,category,chains,tvl_usd,change_7d,age_days,risk_tier,est_roi_pct,implied_value_usd'];
+    rows.forEach(function (it) {
+      var r = it.row;
+      lines.push([
+        r.rank,
+        '"' + r.name.replace(/"/g, '""') + '"',
+        '"' + (r.category || '') + '"',
+        '"' + (r.chains || []).join(';') + '"',
+        r.tvl_usd,
+        r.change_7d === null ? '' : r.change_7d,
+        r.age_days === null ? '' : r.age_days,
+        it.risk.tier,
+        it.yield.roiPct,
+        it.implied
+      ].join(','));
+    });
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'token-radar-board.csv';
+    a.click();
   }
 
   function lede() {
@@ -379,6 +445,15 @@
       })
     );
 
+    var cohortSelect = el('select', {
+      id: 'f-cohort',
+      onchange: function (e) { state.cohort = e.target.value; render(); }
+    },
+      el('option', { value: 'all', text: 'All cohorts (200)', selected: state.cohort === 'all' ? 'selected' : null }),
+      el('option', { value: 'watchlist', text: 'Watchlist >=$50M (40)', selected: state.cohort === 'watchlist' ? 'selected' : null }),
+      el('option', { value: 'early', text: 'Early Gems <$50M (160)', selected: state.cohort === 'early' ? 'selected' : null })
+    );
+
     return el('div', { class: 'controls' },
       el('div', { class: 'field' },
         el('label', { for: 'f-search', text: 'Search' }),
@@ -390,6 +465,7 @@
       el('div', { class: 'field' }, el('label', { for: 'f-cat', text: 'Category' }), catSelect),
       el('div', { class: 'field' }, el('label', { for: 'f-chain', text: 'Chain' }), chainSelect),
       el('div', { class: 'field' }, el('label', { for: 'f-risk', text: 'Risk Tier' }), riskSelect),
+      el('div', { class: 'field' }, el('label', { for: 'f-cohort', text: 'Cohort' }), cohortSelect),
       el('div', { class: 'field' },
         el('label', { text: 'Universe' }),
         el('div', { class: 'tabs', role: 'group', 'aria-label': 'Universe' },
@@ -403,6 +479,7 @@
           })
         )
       ),
+      el('button', { type: 'button', class: 'btn-export', text: 'Export CSV', onclick: exportCsv }),
       el('div', { class: 'count', text: shown + ' rows shown' })
     );
   }
@@ -583,6 +660,7 @@
     shell.appendChild(header());
     shell.appendChild(lede());
     if (state.tab === 'pre-token') {
+      shell.appendChild(peerStrip());
       shell.appendChild(analyticsCharts());
       shell.appendChild(sandboxPanel());
     }

@@ -64,7 +64,7 @@ export const MODEL: ModelConstants = {
 };
 
 /** The model's version label: the dashboard names it and the rules quote it. */
-export const MODEL_VERSION = 'radar-1';
+export const MODEL_VERSION = 'radar-3.0-peer';
 
 /** How many pre-token protocols below the watchlist floor the early radar carries, by TVL. */
 export const EARLY_ROWS = 160;
@@ -193,8 +193,38 @@ export function chainMultiplier(chains: string[]): number {
   return mult;
 }
 
+/** Compute empirical median MCap/TVL multiples by category from live-token peers in the snapshot. */
+export function computePeerMultiples(protocols: SnapshotProtocol[], defaultMult: number): Map<string, number> {
+  const byCat = new Map<string, number[]>();
+  for (const p of protocols) {
+    if (p.mcap_usd !== null && p.mcap_usd > 0 && p.tvl_usd > 0 && p.category) {
+      const ratio = Math.min(0.85, Math.max(0.15, p.mcap_usd / p.tvl_usd));
+      const arr = byCat.get(p.category) ?? [];
+      arr.push(ratio);
+      byCat.set(p.category, arr);
+    }
+  }
+  const medians = new Map<string, number>();
+  for (const [cat, vals] of byCat.entries()) {
+    if (vals.length >= 2) {
+      vals.sort((a, b) => a - b);
+      const mid = Math.floor(vals.length / 2);
+      const med = vals.length % 2 === 0 ? (vals[mid - 1]! + vals[mid]!) / 2 : vals[mid]!;
+      medians.set(cat, Math.round(med * 1000) / 1000);
+    } else {
+      medians.set(cat, defaultMult);
+    }
+  }
+  return medians;
+}
+
 /** The three multipliers and the implied value one protocol gets under `model`. */
-export function impliedValue(protocol: SnapshotProtocol, asOf: string, model: ModelConstants): { implied: number; growthPct: number; growthMult: number; maturityMult: number; age: number | null } {
+export function impliedValue(
+  protocol: SnapshotProtocol,
+  asOf: string,
+  model: ModelConstants,
+  peerMultiples?: Map<string, number>,
+): { implied: number; growthPct: number; growthMult: number; maturityMult: number; age: number | null } {
   const age = ageDays(asOf, protocol.listed_at);
   const rawGrowth = finite(protocol.change_7d, 0);
   const growthPct = Math.min(model.growth_cap, Math.max(model.growth_floor, rawGrowth));
@@ -203,7 +233,10 @@ export function impliedValue(protocol: SnapshotProtocol, asOf: string, model: Mo
   const maturityMult = model.maturity_floor + (Math.min(Math.max(ageForModel, 0), model.maturity_days) / model.maturity_days) * model.maturity_range;
   const catMult = categoryMultiplier(protocol.category);
   const chMult = chainMultiplier(protocol.chains);
-  const base = protocol.tvl_usd * model.base_multiple * catMult * chMult;
+  const peerBase = protocol.category && peerMultiples?.has(protocol.category)
+    ? peerMultiples.get(protocol.category)!
+    : model.base_multiple;
+  const base = protocol.tvl_usd * peerBase * catMult * chMult;
   const implied = Math.max(1, Math.round(base * growthMult * maturityMult));
   return { implied, growthPct, growthMult, maturityMult, age };
 }
@@ -252,8 +285,9 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
     .slice(0, EARLY_ROWS);
   for (const p of early) chosen.set(p.slug, p);
 
+  const peerMultiples = computePeerMultiples(snapshot.protocols, model.base_multiple);
   const scored = [...chosen.values()].map((p) => {
-    const { implied, growthPct, growthMult, maturityMult, age } = impliedValue(p, snapshot.as_of, model);
+    const { implied, growthPct, growthMult, maturityMult, age } = impliedValue(p, snapshot.as_of, model, peerMultiples);
     return { p, implied, growthPct, growthMult, maturityMult, age };
   });
   scored.sort((a, b) => b.implied - a.implied || (a.p.slug < b.p.slug ? -1 : a.p.slug > b.p.slug ? 1 : 0));
