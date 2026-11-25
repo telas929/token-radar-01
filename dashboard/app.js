@@ -82,7 +82,7 @@
     return medians;
   }
 
-  var PEER_MULTIPLES = computePeerMultiples();
+  var PEER_MULTIPLES = DATA.peer_multiples || computePeerMultiples();
 
   function impliedOf(row, baseM, growW) {
     var m = DATA.model;
@@ -278,7 +278,7 @@
     return el('header', { class: 'top' },
       el('div', { class: 'brand' },
         el('span', { class: 'mark', 'aria-hidden': 'true' }),
-        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.3' })
+        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.4' })
       ),
       el('div', { class: 'top-meta' },
         el('span', { text: 'Snapshot ' + DATA.as_of }),
@@ -616,12 +616,15 @@
       el('button', { class: 'close', type: 'button', 'aria-label': 'Close details', text: 'Close', onclick: function () { dialog.close(); } })
     ));
 
+    var peerBase = (row.category && PEER_MULTIPLES[row.category] !== undefined && state.baseMult === DATA.model.base_multiple)
+      ? PEER_MULTIPLES[row.category]
+      : state.baseMult;
     dialog.appendChild(el('section', { class: 'detail-section' },
       el('h3', { text: 'Implied Valuation Breakdown' }),
       el('div', { class: 'equation' },
         el('div', null, el('span', { text: 'TVL' }), el('b', { class: 'num', text: fmtUsd(row.tvl_usd) })),
         el('div', null, el('span', { text: '7d Growth' }), el('b', { class: 'num', text: fmtPct(row.change_7d) })),
-        el('div', null, el('span', { text: 'Age' }), el('b', { class: 'num', text: fmtAge(row.age_days) })),
+        el('div', null, el('span', { text: 'Age / Peer MCap/TVL' }), el('b', { class: 'num', text: fmtAge(row.age_days) + ' / ' + peerBase.toFixed(2) + 'x' })),
         el('div', null, el('span', { text: 'Category / Chain Mult' }), el('b', { class: 'num', text: categoryMultiplier(row.category).toFixed(2) + 'x / ' + chainMultiplier(row.chains).toFixed(2) + 'x' })),
         el('div', null, el('span', { text: 'Growth / Maturity Mult' }), el('b', { class: 'num', text: row.growth_multiplier + 'x / ' + row.maturity_multiplier + 'x' })),
         el('div', null, el('span', { text: 'Implied Value' }), el('b', { class: 'num pos', text: fmtUsd(imp) }))

@@ -144,6 +144,7 @@ export interface RadarData {
   board_size: number;
   early_size: number;
   live_size: number;
+  peer_multiples?: Record<string, number>;
   rows: RadarRow[];
   live: LiveRow[];
 }
@@ -458,6 +459,7 @@ export function radarRow(row: BoardRow): RadarRow {
 
 /** Everything the dashboard renders, from the snapshot. */
 export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): { board: BoardRow[]; radar: RadarData } {
+  const peerMultiples = computePeerMultiples(snapshot.protocols, model.base_multiple);
   const board = buildBoard(snapshot, model);
   const live = liveRows(snapshot);
   const early = board.filter((r) => !snapshot.watchlist.includes(r.slug)).length;
@@ -471,6 +473,7 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
     board_size: board.length,
     early_size: early,
     live_size: live.length,
+    peer_multiples: Object.fromEntries(peerMultiples),
     rows: board.map(radarRow),
     live,
   };
