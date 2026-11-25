@@ -278,7 +278,7 @@
     return el('header', { class: 'top' },
       el('div', { class: 'brand' },
         el('span', { class: 'mark', 'aria-hidden': 'true' }),
-        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.4' })
+        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.5' })
       ),
       el('div', { class: 'top-meta' },
         el('span', { text: 'Snapshot ' + DATA.as_of }),
@@ -422,7 +422,14 @@
   }
 
   function controls() {
-    var shown = state.tab === 'pre-token' ? visibleRows().length : DATA.live.length;
+    var filtered = state.tab === 'pre-token' ? visibleRows() : [];
+    var shown = state.tab === 'pre-token' ? filtered.length : DATA.live.length;
+    var countText = shown + ' rows shown';
+    if (state.tab === 'pre-token' && filtered.length > 0) {
+      var sumTvl = filtered.reduce(function (acc, it) { return acc + it.row.tvl_usd; }, 0);
+      var sumImp = filtered.reduce(function (acc, it) { return acc + it.implied; }, 0);
+      countText = shown + ' rows • ' + fmtUsd(sumTvl) + ' TVL • ' + fmtUsd(sumImp) + ' Imp';
+    }
     var catSelect = el('select', {
       id: 'f-cat',
       onchange: function (e) { state.category = e.target.value; writeHash(); render(); }
@@ -480,7 +487,7 @@
         )
       ),
       el('button', { type: 'button', class: 'btn-export', text: 'Export CSV', onclick: exportCsv }),
-      el('div', { class: 'count', text: shown + ' rows shown' })
+      el('div', { class: 'count', text: countText })
     );
   }
 
@@ -631,12 +638,13 @@
       )
     ));
 
+    var gasTier = (row.chains || []).some(function (c) { return c.toLowerCase() === 'ethereum'; }) ? '~$6.50 / wk' : '~$0.40 / wk';
     dialog.appendChild(el('section', { class: 'detail-section' },
       el('h3', { text: 'Airdrop Yield & Risk Profile' }),
       el('div', { class: 'equation' },
         el('div', null, el('span', { text: 'Est. Community Pool (10%)' }), el('b', { class: 'num', text: fmtUsd(yld.pool) })),
         el('div', null, el('span', { text: 'Est. Farmer Reward ($' + yld.cap + ')' }), el('b', { class: 'num pos', text: fmtUsd(yld.reward) + ' (+' + yld.roiPct + '%)' })),
-        el('div', null, el('span', { text: 'Gas Breakeven' }), el('b', { class: 'num', text: yld.breakeven + ' days' }))
+        el('div', null, el('span', { text: 'Breakeven / Est. Gas' }), el('b', { class: 'num', text: yld.breakeven + 'd / ' + gasTier }))
       )
     ));
 
