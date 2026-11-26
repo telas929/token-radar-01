@@ -185,13 +185,10 @@ export function categoryMultiplier(category: string | null): number {
   return 1.0;
 }
 
-/** Multi-chain deployment network effect and ecosystem growth momentum multiplier. */
+/** Multi-chain deployment diversification multiplier derived purely from snapshot chain count. */
 export function chainMultiplier(chains: string[]): number {
   if (!chains || chains.length === 0) return 1.0;
-  let mult = 1.0 + Math.min(chains.length, 6) * 0.025;
-  const highGrowth = ['base', 'solana', 'monad', 'berachain', 'arbitrum', 'hyperliquid', 'optimism'];
-  if (chains.some((c) => highGrowth.includes(c.toLowerCase()))) mult += 0.06;
-  return mult;
+  return Math.round((1.0 + Math.min(chains.length, 6) * 0.03) * 1000) / 1000;
 }
 
 /** Compute empirical median MCap/TVL multiples by category from live-token peers in the snapshot. */

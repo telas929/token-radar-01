@@ -53,12 +53,7 @@
 
   function chainMultiplier(chains) {
     if (!chains || chains.length === 0) return 1.0;
-    var mult = 1.0 + Math.min(chains.length, 6) * 0.025;
-    var highGrowth = ['base', 'solana', 'monad', 'berachain', 'arbitrum', 'hyperliquid', 'optimism'];
-    for (var i = 0; i < chains.length; i++) {
-      if (highGrowth.indexOf(chains[i].toLowerCase()) >= 0) { mult += 0.06; break; }
-    }
-    return mult;
+    return Math.round((1.0 + Math.min(chains.length, 6) * 0.03) * 1000) / 1000;
   }
 
   function computePeerMultiples() {
@@ -278,7 +273,7 @@
     return el('header', { class: 'top' },
       el('div', { class: 'brand' },
         el('span', { class: 'mark', 'aria-hidden': 'true' }),
-        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.5' })
+        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.6' })
       ),
       el('div', { class: 'top-meta' },
         el('span', { text: 'Snapshot ' + DATA.as_of }),
@@ -594,9 +589,9 @@
       el('h2', { text: 'Quantitative Valuation & Risk Methodology (' + DATA.model_version + ')' }),
       el('p', { class: 'sub', text: 'Every pre-token protocol is evaluated deterministically from frozen snapshot metrics with zero manual overrides or name special-casing.' }),
       el('div', { class: 'formula' },
-        'implied = round( tvl_usd x ' + state.baseMult.toFixed(2) + ' x catMult(category) x chMult(chains) x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ')/100 x ' + state.growthWeight.toFixed(1) + ') x maturity(age_days) )'
+        'implied = round( tvl_usd x peerBase(category, ' + state.baseMult.toFixed(2) + ') x catMult(category) x chMult(chains.length) x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ')/100 x ' + state.growthWeight.toFixed(1) + ') x maturity(age_days) )'
       ),
-      el('p', { class: 'sub', text: 'Risk Score (5-95) combines 7d TVL velocity volatility, multi-chain diversification resilience, sector systemic risk, and protocol seasoning age. Est. Farmer ROI assumes 10% community airdrop pool scaled by capital share.' })
+      el('p', { class: 'sub', text: 'peerBase(category) uses median MCap/TVL of live-token peers in the same snapshot (clamped [0.15, 0.85]). Risk Score (5-95) combines 7d TVL velocity, chain diversification, sector risk, and protocol age.' })
     );
   }
 
@@ -626,6 +621,9 @@
     var peerBase = (row.category && PEER_MULTIPLES[row.category] !== undefined && state.baseMult === DATA.model.base_multiple)
       ? PEER_MULTIPLES[row.category]
       : state.baseMult;
+    var parityText = imp === row.implied_value_usd
+      ? '✓ Exact parity with board.json (' + fmtUsd(imp) + ')'
+      : 'Sandbox preview: ' + fmtUsd(imp) + ' (board.json: ' + fmtUsd(row.implied_value_usd) + ')';
     dialog.appendChild(el('section', { class: 'detail-section' },
       el('h3', { text: 'Implied Valuation Breakdown' }),
       el('div', { class: 'equation' },
@@ -635,7 +633,8 @@
         el('div', null, el('span', { text: 'Category / Chain Mult' }), el('b', { class: 'num', text: categoryMultiplier(row.category).toFixed(2) + 'x / ' + chainMultiplier(row.chains).toFixed(2) + 'x' })),
         el('div', null, el('span', { text: 'Growth / Maturity Mult' }), el('b', { class: 'num', text: row.growth_multiplier + 'x / ' + row.maturity_multiplier + 'x' })),
         el('div', null, el('span', { text: 'Implied Value' }), el('b', { class: 'num pos', text: fmtUsd(imp) }))
-      )
+      ),
+      el('p', { class: 'sub', text: parityText })
     ));
 
     var gasTier = (row.chains || []).some(function (c) { return c.toLowerCase() === 'ethereum'; }) ? '~$6.50 / wk' : '~$0.40 / wk';
