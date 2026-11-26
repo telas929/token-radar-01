@@ -119,8 +119,10 @@
     var pool = Math.round(impliedVal * 0.10);
     var cap = capitalFor(row);
     var tvl = Math.max(row.tvl_usd, 1e6);
-    var reward = Math.max(25, Math.round(pool * (cap / tvl) * 2.5));
-    var roiPct = Math.round((reward / cap) * 100);
+    var age = row.age_days !== null && row.age_days !== undefined ? row.age_days : 365;
+    var earlyBoost = age < 180 ? 1.5 : age < 365 ? 1.25 : 1.0;
+    var roiPct = Math.round((pool / tvl) * earlyBoost * 1000) / 10;
+    var reward = Math.max(1, Math.round(cap * (roiPct / 100)));
     var eth = (row.chains || []).some(function (c) { return c.toLowerCase() === 'ethereum'; });
     var gasUsd = eth ? 35 : 3;
     var daily = reward / Math.max(holdDaysFor(row.age_days), 30);
@@ -262,7 +264,7 @@
     return el('header', { class: 'top' },
       el('div', { class: 'brand' },
         el('span', { class: 'mark', 'aria-hidden': 'true' }),
-        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.9' })
+        el('span', { class: 'brand-name', text: 'Token Radar Pro v3.0' })
       ),
       el('div', { class: 'top-meta' },
         el('span', { text: 'Snapshot ' + DATA.as_of }),
