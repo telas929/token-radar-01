@@ -40,17 +40,6 @@
   }
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
-  function categoryMultiplier(category) {
-    if (!category) return 1.0;
-    var c = category.toLowerCase();
-    if (c.indexOf('rollup') >= 0 || c.indexOf('l2') >= 0 || c.indexOf('modular') >= 0 || c.indexOf('chain') >= 0) return 1.35;
-    if (c.indexOf('restak') >= 0 || c.indexOf('liquid stake') >= 0) return 1.25;
-    if (c.indexOf('perpetual') >= 0 || c.indexOf('derivative') >= 0 || c.indexOf('dex') >= 0) return 1.20;
-    if (c.indexOf('allocator') >= 0 || c.indexOf('curator') >= 0 || c.indexOf('ai') >= 0) return 1.15;
-    if (c.indexOf('cdp') >= 0 || c.indexOf('lend') >= 0) return 1.05;
-    return 1.0;
-  }
-
   function chainMultiplier(chains) {
     if (!chains || chains.length === 0) return 1.0;
     return Math.round((1.0 + Math.min(chains.length, 6) * 0.03) * 1000) / 1000;
@@ -273,7 +262,7 @@
     return el('header', { class: 'top' },
       el('div', { class: 'brand' },
         el('span', { class: 'mark', 'aria-hidden': 'true' }),
-        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.8' })
+        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.9' })
       ),
       el('div', { class: 'top-meta' },
         el('span', { text: 'Snapshot ' + DATA.as_of }),
@@ -621,6 +610,11 @@
     var peerBase = (row.category && PEER_MULTIPLES[row.category] !== undefined && state.baseMult === DATA.model.base_multiple)
       ? PEER_MULTIPLES[row.category]
       : state.baseMult;
+    var m = DATA.model;
+    var gClamped = clamp(row.change_7d === null || row.change_7d === undefined ? 0 : row.change_7d, m.growth_floor, m.growth_cap);
+    var gMultDyn = (1 + (gClamped / 100) * state.growthWeight).toFixed(4);
+    var ageVal = row.age_days === null || row.age_days === undefined ? m.unknown_age_days : row.age_days;
+    var mMultDyn = (m.maturity_floor + (clamp(ageVal, 0, m.maturity_days) / m.maturity_days) * m.maturity_range).toFixed(4);
     var parityText = imp === row.implied_value_usd
       ? '✓ Exact parity with board.json (' + fmtUsd(imp) + ')'
       : 'Sandbox preview: ' + fmtUsd(imp) + ' (board.json: ' + fmtUsd(row.implied_value_usd) + ')';
@@ -631,7 +625,7 @@
         el('div', null, el('span', { text: '7d Growth' }), el('b', { class: 'num', text: fmtPct(row.change_7d) })),
         el('div', null, el('span', { text: 'Age / Peer MCap/TVL' }), el('b', { class: 'num', text: fmtAge(row.age_days) + ' / ' + peerBase.toFixed(2) + 'x' })),
         el('div', null, el('span', { text: 'Peer MCap/TVL / Chain Mult' }), el('b', { class: 'num', text: peerBase.toFixed(2) + 'x / ' + chainMultiplier(row.chains).toFixed(2) + 'x' })),
-        el('div', null, el('span', { text: 'Growth / Maturity Mult' }), el('b', { class: 'num', text: row.growth_multiplier + 'x / ' + row.maturity_multiplier + 'x' })),
+        el('div', null, el('span', { text: 'Growth / Maturity Mult' }), el('b', { class: 'num', text: gMultDyn + 'x / ' + mMultDyn + 'x' })),
         el('div', null, el('span', { text: 'Implied Value' }), el('b', { class: 'num pos', text: fmtUsd(imp) }))
       ),
       el('p', { class: 'sub', text: parityText })
