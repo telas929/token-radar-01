@@ -162,7 +162,7 @@ dialog.detail::backdrop { background: rgba(5, 8, 12, 0.78); backdrop-filter: blu
 .equation > div { background: var(--canvas); border: 1px solid var(--border); border-radius: 8px; padding: var(--step-2) var(--step-3); display: grid; gap: 2px; }
 .equation span { font-size: 11px; color: var(--muted); }
 .equation b { font-size: 14px; color: #ffffff; }
-.steps { margin: 0; padding-left: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--step-2); }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: var(--step-2); }
 .steps li { background: var(--canvas); border: 1px solid var(--border); border-radius: 8px; padding: var(--step-2) var(--step-3); display: grid; gap: 2px; }
 .steps .cost { font-family: var(--font-num); font-size: 11px; color: var(--accent); }
 .empty { padding: var(--step-6); text-align: center; color: var(--muted); }

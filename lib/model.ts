@@ -229,12 +229,11 @@ export function impliedValue(
   const growthMult = 1 + (growthPct / 100) * model.growth_weight;
   const ageForModel = age ?? model.unknown_age_days;
   const maturityMult = model.maturity_floor + (Math.min(Math.max(ageForModel, 0), model.maturity_days) / model.maturity_days) * model.maturity_range;
-  const catMult = categoryMultiplier(protocol.category);
   const chMult = chainMultiplier(protocol.chains);
   const peerBase = protocol.category && peerMultiples?.has(protocol.category)
     ? peerMultiples.get(protocol.category)!
     : model.base_multiple;
-  const base = protocol.tvl_usd * peerBase * catMult * chMult;
+  const base = protocol.tvl_usd * peerBase * chMult;
   const implied = Math.max(1, Math.round(base * growthMult * maturityMult));
   return { implied, growthPct, growthMult, maturityMult, age };
 }

@@ -90,7 +90,7 @@
     var growthMult = 1 + (growth / 100) * gw;
     var age = row.age_days === null || row.age_days === undefined ? m.unknown_age_days : row.age_days;
     var maturity = m.maturity_floor + (clamp(age, 0, m.maturity_days) / m.maturity_days) * m.maturity_range;
-    return Math.max(1, Math.round(row.tvl_usd * peerBase * categoryMultiplier(row.category) * chainMultiplier(row.chains) * growthMult * maturity));
+    return Math.max(1, Math.round(row.tvl_usd * peerBase * chainMultiplier(row.chains) * growthMult * maturity));
   }
 
   function riskOf(row) {
@@ -273,7 +273,7 @@
     return el('header', { class: 'top' },
       el('div', { class: 'brand' },
         el('span', { class: 'mark', 'aria-hidden': 'true' }),
-        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.7' })
+        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.8' })
       ),
       el('div', { class: 'top-meta' },
         el('span', { text: 'Snapshot ' + DATA.as_of }),
@@ -589,7 +589,7 @@
       el('h2', { text: 'Quantitative Valuation & Risk Methodology (' + DATA.model_version + ')' }),
       el('p', { class: 'sub', text: 'Every pre-token protocol is evaluated deterministically from frozen snapshot metrics with zero manual overrides or name special-casing.' }),
       el('div', { class: 'formula' },
-        'implied = round( tvl_usd x peerBase(category, ' + state.baseMult.toFixed(2) + ') x catMult(category) x chMult(chains.length) x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ')/100 x ' + state.growthWeight.toFixed(1) + ') x maturity(age_days) )'
+        'implied = round( tvl_usd x peerBase(category, ' + state.baseMult.toFixed(2) + ') x chMult(chains.length) x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ')/100 x ' + state.growthWeight.toFixed(1) + ') x maturity(age_days) )'
       ),
       el('p', { class: 'sub', text: 'peerBase(category) uses median MCap/TVL of live-token peers in the same snapshot (clamped [0.15, 0.85]). Risk Score (5-95) combines 7d TVL velocity, chain diversification, sector risk, and protocol age.' })
     );
@@ -630,7 +630,7 @@
         el('div', null, el('span', { text: 'TVL' }), el('b', { class: 'num', text: fmtUsd(row.tvl_usd) })),
         el('div', null, el('span', { text: '7d Growth' }), el('b', { class: 'num', text: fmtPct(row.change_7d) })),
         el('div', null, el('span', { text: 'Age / Peer MCap/TVL' }), el('b', { class: 'num', text: fmtAge(row.age_days) + ' / ' + peerBase.toFixed(2) + 'x' })),
-        el('div', null, el('span', { text: 'Category / Chain Mult' }), el('b', { class: 'num', text: categoryMultiplier(row.category).toFixed(2) + 'x / ' + chainMultiplier(row.chains).toFixed(2) + 'x' })),
+        el('div', null, el('span', { text: 'Peer MCap/TVL / Chain Mult' }), el('b', { class: 'num', text: peerBase.toFixed(2) + 'x / ' + chainMultiplier(row.chains).toFixed(2) + 'x' })),
         el('div', null, el('span', { text: 'Growth / Maturity Mult' }), el('b', { class: 'num', text: row.growth_multiplier + 'x / ' + row.maturity_multiplier + 'x' })),
         el('div', null, el('span', { text: 'Implied Value' }), el('b', { class: 'num pos', text: fmtUsd(imp) }))
       ),
