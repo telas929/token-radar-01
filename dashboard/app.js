@@ -273,7 +273,7 @@
     return el('header', { class: 'top' },
       el('div', { class: 'brand' },
         el('span', { class: 'mark', 'aria-hidden': 'true' }),
-        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.6' })
+        el('span', { class: 'brand-name', text: 'Token Radar Pro v2.7' })
       ),
       el('div', { class: 'top-meta' },
         el('span', { text: 'Snapshot ' + DATA.as_of }),
@@ -337,10 +337,10 @@
     );
   }
 
-  function analyticsCharts() {
+  function analyticsCharts(rowsList) {
     var chainMap = {};
     var riskCounts = { LOW: 0, MEDIUM: 0, HIGH: 0, SPECULATIVE: 0 };
-    enrichedRows().forEach(function (it) {
+    rowsList.forEach(function (it) {
       riskCounts[it.risk.tier] += 1;
       (it.row.chains || []).forEach(function (ch) {
         chainMap[ch] = (chainMap[ch] || 0) + it.row.tvl_usd;
@@ -366,7 +366,7 @@
       { key: 'HIGH', label: 'HIGH', color: '#f59e0b', count: riskCounts.HIGH },
       { key: 'SPECULATIVE', label: 'SPECULATIVE', color: '#ff5c5c', count: riskCounts.SPECULATIVE }
     ];
-    var totalRows = Math.max(1, DATA.rows.length);
+    var totalRows = Math.max(1, rowsList.length);
     var riskSvg = svgEl('svg', { class: 'chart-svg', viewBox: '0 0 540 165' });
     tiers.forEach(function (t, i) {
       var y = 16 + i * 36;
@@ -472,11 +472,11 @@
         el('label', { text: 'Universe' }),
         el('div', { class: 'tabs', role: 'group', 'aria-label': 'Universe' },
           el('button', {
-            type: 'button', 'aria-pressed': String(state.tab === 'pre-token'), text: 'Pre-token',
+            type: 'button', 'aria-pressed': String(state.tab === 'pre-token'), text: 'Pre-token (' + DATA.rows.length + ')',
             onclick: function () { state.tab = 'pre-token'; writeHash(); render(); }
           }),
           el('button', {
-            type: 'button', 'aria-pressed': String(state.tab === 'live'), text: 'Live token',
+            type: 'button', 'aria-pressed': String(state.tab === 'live'), text: 'Live token (' + DATA.live.length + ')',
             onclick: function () { state.tab = 'live'; writeHash(); render(); }
           })
         )
@@ -671,7 +671,7 @@
     shell.appendChild(lede());
     if (state.tab === 'pre-token') {
       shell.appendChild(peerStrip());
-      shell.appendChild(analyticsCharts());
+      shell.appendChild(analyticsCharts(visibleRows()));
       shell.appendChild(sandboxPanel());
     }
     shell.appendChild(controls());
